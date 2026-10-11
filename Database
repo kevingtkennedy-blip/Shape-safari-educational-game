@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape & Color Safari!</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Fredoka One', cursive, sans-serif;
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        /* Header / Score & Level Board */
+        header {
+            width: 100%;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            font-size: 1.3rem;
+            color: #333;
+        }
+
+        .star-container {
+            font-size: 1.8rem;
+            color: #FFD700;
+        }
+
+        /* Target Prompt Display */
+        #prompt-container {
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        #level-indicator {
+            font-size: 1.1rem;
+            color: #E67E22;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        #prompt-text {
+            font-size: 2rem;
+            color: #2C3E50;
+            margin: 0;
+        }
+
+        .btn-audio {
+            background: #FF6B6B;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #C0392B;
+            margin-top: 5px;
+            transition: transform 0.1s;
+        }
+
+        .btn-audio:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Game Canvas / Options Area */
+        #game-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+            flex-wrap: wrap;
+            max-width: 900px;
+            width: 90%;
+            height: 45vh;
+        }
+
+        /* Interactive Shape Items */
+        .shape-card {
+            width: 120px;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s, filter 0.2s;
+            filter: drop-shadow(0px 8px 8px rgba(0,0,0,0.15));
+        }
+
+        .shape-card:hover {
+            transform: scale(1.1);
+        }
+
+        /* Shape CSS Geometries */
+        .circle {
+            border-radius: 50%;
+        }
+
+        .square {
+            border-radius: 15px;
+        }
+
+        .triangle {
+            width: 0;
+            height: 0;
+            border-left: 60px solid transparent;
+            border-right: 60px solid transparent;
+            border-bottom: 105px solid;
+            background-color: transparent !important;
+        }
+
+        .star {
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+        }
+
+        .heart {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            background-color: transparent !important;
+        }
+        .heart::before, .heart::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            width: 52px;
+            height: 80px;
+            border-radius: 50px 50px 0 0;
+            background: var(--card-color);
+        }
+        .heart::before {
+            left: 52px;
+            transform: rotate(-45deg);
+            transform-origin: 0 100%;
+        }
+        .heart::after {
+            left: 0;
+            transform: rotate(45deg);
+            transform-origin: 100% 100%;
+        }
+
+        .diamond {
+            width: 90px;
+            height: 90px;
+            transform: rotate(45deg);
+            border-radius: 10px;
+        }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+            100% { transform: translateX(0); }
+        }
+
+        .correct-anim {
+            animation: bounce 0.6s ease;
+        }
+
+        .wrong-anim {
+            animation: shake 0.4s ease;
+        }
+
+        /* Start / Celebration Overlay */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .btn-start {
+            font-size: 2rem;
+            padding: 15px 40px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #388E3C;
+            font-family: inherit;
+        }
+
+        .btn-start:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #388E3C;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>Shape Safari 🎈</div>
+        <div class="star-container">⭐ <span id="score">0</span></div>
+    </header>
+
+    <div id="prompt-container">
+        <div id="level-indicator">Level 1</div>
+        <h1 id="prompt-text">Tap Start to Play!</h1>
+        <button class="btn-audio" onclick="repeatPrompt()">🔊</button>
+    </div>
+
+    <div id="game-area"></div>
+
+    <!-- Start / Win Modal -->
+    <div id="overlay">
+        <h1 id="overlay-title" style="font-size: 3rem; color: #FF6B6B; margin-bottom: 20px;">Shape Safari!</h1>
+        <p style="font-size: 1.3rem; color: #555; margin-bottom: 20px;">Ready to learn shapes and colors?</p>
+        <button class="btn-start" onclick="startGame()">PLAY</button>
+    </div>
+
+    <script>
+        const levelShapes = {
+            1: ['circle', 'square'],
+            2: ['circle', 'square', 'triangle', 'star'],
+            3: ['circle', 'square', 'triangle', 'star', 'heart', 'diamond']
+        };
+
+        const colors = [
+            { name: 'Red', hex: '#FF4D4D' },
+            { name: 'Blue', hex: '#4D96FF' },
+            { name: 'Yellow', hex: '#FFD93D' },
+            { name: 'Green', hex: '#6BCB77' },
+            { name: 'Purple', hex: '#9B51E0' },
+            { name: 'Pink', hex: '#FF66B2' }
+        ];
+
+        let score = 0;
+        let currentLevel = 1;
+        let roundInLevel = 0;
+        const roundsPerLevel = 4;
+        let currentTarget = {};
+        let currentPromptText = "";
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.pitch = 1.2;
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            currentLevel = 1;
+            roundInLevel = 0;
+            document.getElementById('score').innerText = score;
+            document.getElementById('overlay').style.display = 'none';
+            nextRound();
+        }
+
+        function nextRound() {
+            const gameArea = document.getElementById('game-area');
+            gameArea.innerHTML = '';
+
+            document.getElementById('level-indicator').innerText = `Level ${currentLevel}`;
+
+            // Determine number of choices based on level (Level 1: 2 choices, Level 2: 3 choices, Level 3: 4 choices)
+            let numChoices = currentLevel === 1 ? 2 : (currentLevel === 2 ? 3 : 4);
+            let availableShapes = levelShapes[currentLevel];
+
+            let choices = [];
+            while (choices.length < numChoices) {
+                let randomShape = availableShapes[Math.floor(Math.random() * availableShapes.length)];
+                let randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                let exists = choices.some(c => c.shape === randomShape && c.color.name === randomColor.name);
+                if (!exists) {
+                    choices.push({ shape: randomShape, color: randomColor });
+                }
+            }
+
+            currentTarget = choices[Math.floor(Math.random() * choices.length)];
+            currentPromptText = `Find the ${currentTarget.color.name} ${currentTarget.shape}!`;
+            
+            document.getElementById('prompt-text').innerText = currentPromptText;
+            speak(currentPromptText);
+
+            choices.forEach(item => {
+                const card = document.createElement('div');
+                card.classList.add('shape-card', item.shape);
+                card.style.setProperty('--card-color', item.color.hex);
+
+                if (item.shape === 'triangle') {
+                    card.style.borderBottomColor = item.color.hex;
+                } else if (item.shape !== 'heart') {
+                    card.style.backgroundColor = item.color.hex;
+                }
+
+                card.onclick = () => checkAnswer(item, card);
+                gameArea.appendChild(card);
+            });
+        }
+
+        function checkAnswer(selected, element) {
+            if (selected.shape === currentTarget.shape && selected.color.name === currentTarget.color.name) {
+                element.classList.add('correct-anim');
+                speak("Great job!");
+                score += 1;
+                roundInLevel += 1;
+                document.getElementById('score').innerText = score;
+
+                setTimeout(() => {
+                    if (roundInLevel >= roundsPerLevel) {
+                        roundInLevel = 0;
+                        currentLevel++;
+                        if (currentLevel > 3) {
+                            endGame();
+                        } else {
+                            speak(`Awesome! Moving to Level ${currentLevel}!`);
+                            setTimeout(nextRound, 1500);
+                        }
+                    } else {
+                        nextRound();
+                    }
+                }, 1200);
+            } else {
+                element.classList.add('wrong-anim');
+                speak("Try again!");
+                setTimeout(() => {
+                    element.classList.remove('wrong-anim');
+                }, 500);
+            }
+        }
+
+        function repeatPrompt() {
+            if (currentPromptText) {
+                speak(currentPromptText);
+            }
+        }
+
+        function endGame() {
+            document.getElementById('overlay-title').innerText = "🎉 Safari Complete! 🎉";
+            document.getElementById('overlay').style.display = 'flex';
+            speak("Hooray! You completed the entire shape safari!");
+        }
+    </script>
+</body>
+</html>
